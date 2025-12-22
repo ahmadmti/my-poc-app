@@ -1,77 +1,113 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
 
 # --- DATABASE SETUP ---
 def init_db():
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("school.db")
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS items 
+    # Table for Students
+    c.execute('''CREATE TABLE IF NOT EXISTS students 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  name TEXT, category TEXT, quantity INTEGER, price REAL)''')
+                  name TEXT, grade_level TEXT, parent_contact TEXT)''')
+    # Table for Grades
+    c.execute('''CREATE TABLE IF NOT EXISTS grades 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  student_name TEXT, subject TEXT, score INTEGER)''')
     conn.commit()
     conn.close()
 
 init_db()
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("📦 IMS Portal")
+st.sidebar.title("🏫 EduManage POC")
 st.sidebar.divider()
-page = st.sidebar.radio("Navigate to:", ["Dashboard", "Inventory List", "Add/Update Stock"])
+page = st.sidebar.radio("School Modules:", 
+                       ["Dashboard", "Student Directory", "Gradebook", "Add New Entry"])
 
-# --- PAGE 1: DASHBOARD ---
+# --- MODULE 1: DASHBOARD ---
 if page == "Dashboard":
-    st.title("📊 Business Overview")
+    st.title("📈 School Overview")
     
-    conn = sqlite3.connect("inventory.db")
-    df = pd.read_sql_query("SELECT * FROM items", conn)
+    conn = sqlite3.connect("school.db")
+    df_students = pd.read_sql_query("SELECT * FROM students", conn)
+    df_grades = pd.read_sql_query("SELECT * FROM grades", conn)
     conn.close()
 
-    if not df.empty:
-        # High-level Metrics
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Items", len(df))
-        col2.metric("Total Value", f"${(df['quantity'] * df['price']).sum():,.2f}")
-        col3.metric("Low Stock Alerts", len(df[df['quantity'] < 5]))
-
-        st.subheader("Inventory Distribution")
-        st.bar_chart(df.set_index('name')['quantity'])
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Students", len(df_students))
+    
+    if not df_grades.empty:
+        avg_score = df_grades['score'].mean()
+        col2.metric("Average GPA/Score", f"{avg_score:.1f}%")
+        
+        st.subheader("Performance by Subject")
+        chart_data = df_grades.groupby('subject')['score'].mean()
+        st.bar_chart(chart_data)
     else:
-        st.info("No data available. Go to 'Add/Update Stock' to begin.")
+        st.info("Enroll students and add grades to see analytics.")
 
-# --- PAGE 2: INVENTORY LIST ---
-elif page == "Inventory List":
-    st.title("📋 Current Inventory")
-    conn = sqlite3.connect("inventory.db")
-    df = pd.read_sql_query("SELECT * FROM items", conn)
+# --- MODULE 2: STUDENT DIRECTORY ---
+elif page == "Student Directory":
+    st.title("👥 Student Directory")
+    conn = sqlite3.connect("school.db")
+    df = pd.read_sql_query("SELECT * FROM students", conn)
     conn.close()
     
-    # Search Bar
-    search = st.text_input("Search by Product Name")
+    search = st.text_input("Search Student Name")
     if search:
         df = df[df['name'].str.contains(search, case=False)]
     
     st.dataframe(df, use_container_width=True, hide_index=True)
 
-# --- PAGE 3: ADD/UPDATE STOCK ---
-elif page == "Add/Update Stock":
-    st.title("➕ Stock Management")
+# --- MODULE 3: GRADEBOOK ---
+elif page == "Gradebook":
+    st.title("📝 Student Gradebook")
+    conn = sqlite3.connect("school.db")
+    df = pd.read_sql_query("SELECT * FROM grades", conn)
+    conn.close()
     
-    with st.form("add_form"):
-        name = st.text_input("Product Name")
-        cat = st.selectbox("Category", ["Electronics", "Furniture", "Food", "Apparel"])
-        qty = st.number_input("Quantity", min_value=0, step=1)
-        prc = st.number_input("Unit Price ($)", min_value=0.0, step=0.01)
-        
-        if st.form_submit_button("Save to Database"):
-            if name:
-                conn = sqlite3.connect("inventory.db")
+    if not df.empty:
+        st.table(df) # Using st.table for a cleaner "report card" look
+    else:
+        st.warning("No grades recorded yet.")
+
+# --- MODULE 4: ADD NEW ENTRY ---
+elif page == "Add New Entry":
+    st.title("➕ Administrative Entry")
+    
+    tab1, tab2 = st.tabs(["Enroll Student", "Record Grade"])
+    
+    with tab1:
+        with st.form("enroll_form"):
+            s_name = st.text_input("Student Name")
+            s_grade = st.selectbox("Grade Level", [f"Grade {i}" for i in range(1, 13)])
+            s_contact = st.text_input("Parent Contact (Phone/Email)")
+            if st.form_submit_button("Enroll Student"):
+                conn = sqlite3.connect("school.db")
                 c = conn.cursor()
-                c.execute("INSERT INTO items (name, category, quantity, price) VALUES (?, ?, ?, ?)", 
-                          (name, cat, qty, prc))
+                c.execute("INSERT INTO students (name, grade_level, parent_contact) VALUES (?, ?, ?)", 
+                          (s_name, s_grade, s_contact))
                 conn.commit()
                 conn.close()
-                st.success(f"Successfully added {name}!")
-            else:
-                st.error("Product Name is required.")
+                st.success(f"Registered {s_name}!")
+
+    with tab2:
+        # Get list of students for the dropdown
+        conn = sqlite3.connect("school.db")
+        student_list = pd.read_sql_query("SELECT name FROM students", conn)['name'].tolist()
+        conn.close()
+
+        with st.form("grade_form"):
+            student = st.selectbox("Select Student", student_list) if student_list else st.info("Enroll students first!")
+            subject = st.selectbox("Subject", ["Math", "Science", "English", "History", "Arts"])
+            score = st.slider("Score", 0, 100, 75)
+            if st.form_submit_button("Submit Grade"):
+                conn = sqlite3.connect("school.db")
+                c = conn.cursor()
+                c.execute("INSERT INTO grades (student_name, subject, score) VALUES (?, ?, ?)", 
+                          (student, subject, score))
+                conn.commit()
+                conn.close()
+                st.balloons() # Fun visual effect
+                st.success(f"Grade added for {student}!")
