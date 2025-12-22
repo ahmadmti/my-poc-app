@@ -1,113 +1,110 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+from datetime import datetime
 
 # --- DATABASE SETUP ---
 def init_db():
-    conn = sqlite3.connect("school.db")
+    conn = sqlite3.connect("pizza_admin.db")
     c = conn.cursor()
-    # Table for Students
-    c.execute('''CREATE TABLE IF NOT EXISTS students 
+    c.execute('''CREATE TABLE IF NOT EXISTS orders 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  name TEXT, grade_level TEXT, parent_contact TEXT)''')
-    # Table for Grades
-    c.execute('''CREATE TABLE IF NOT EXISTS grades 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  student_name TEXT, subject TEXT, score INTEGER)''')
+                  customer TEXT, pizza_type TEXT, size TEXT, 
+                  status TEXT, price REAL, timestamp DATETIME)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- SIDEBAR NAVIGATION ---
-st.sidebar.title("🏫 EduManage POC")
-st.sidebar.divider()
-page = st.sidebar.radio("School Modules:", 
-                       ["Dashboard", "Student Directory", "Gradebook", "Add New Entry"])
+# --- FANCY UI/UX CUSTOMIZATION ---
+st.set_page_config(page_title="SliceMaster Pro", page_icon="🍕", layout="wide")
 
-# --- MODULE 1: DASHBOARD ---
-if page == "Dashboard":
-    st.title("📈 School Overview")
-    
-    conn = sqlite3.connect("school.db")
-    df_students = pd.read_sql_query("SELECT * FROM students", conn)
-    df_grades = pd.read_sql_query("SELECT * FROM grades", conn)
+# Custom CSS for a "Brand" look
+st.markdown("""
+    <style>
+    .main { background-color: #1a1a1a; color: white; }
+    .stButton>button { background-color: #ff4b4b; color: white; border-radius: 20px; border: none; }
+    .stMetric { background-color: #262730; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- SIDEBAR NAV ---
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3595/3595455.png", width=100)
+st.sidebar.title("SliceMaster Admin")
+page = st.sidebar.selectbox("Go to:", ["🔥 Live Orders", "🍕 Create New Order", "📊 Sales Insights"])
+
+# --- PAGE 1: LIVE ORDERS ---
+if page == "🔥 Live Orders":
+    st.title("🔥 Current Kitchen Queue")
+    conn = sqlite3.connect("pizza_admin.db")
+    df = pd.read_sql_query("SELECT * FROM orders WHERE status != 'Delivered' ORDER BY timestamp DESC", conn)
     conn.close()
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Students", len(df_students))
-    
-    if not df_grades.empty:
-        avg_score = df_grades['score'].mean()
-        col2.metric("Average GPA/Score", f"{avg_score:.1f}%")
-        
-        st.subheader("Performance by Subject")
-        chart_data = df_grades.groupby('subject')['score'].mean()
-        st.bar_chart(chart_data)
-    else:
-        st.info("Enroll students and add grades to see analytics.")
-
-# --- MODULE 2: STUDENT DIRECTORY ---
-elif page == "Student Directory":
-    st.title("👥 Student Directory")
-    conn = sqlite3.connect("school.db")
-    df = pd.read_sql_query("SELECT * FROM students", conn)
-    conn.close()
-    
-    search = st.text_input("Search Student Name")
-    if search:
-        df = df[df['name'].str.contains(search, case=False)]
-    
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-# --- MODULE 3: GRADEBOOK ---
-elif page == "Gradebook":
-    st.title("📝 Student Gradebook")
-    conn = sqlite3.connect("school.db")
-    df = pd.read_sql_query("SELECT * FROM grades", conn)
-    conn.close()
-    
     if not df.empty:
-        st.table(df) # Using st.table for a cleaner "report card" look
+        # Using columns to create "Order Cards"
+        for index, row in df.iterrows():
+            with st.container():
+                c1, c2, c3, c4 = st.columns([1, 2, 1, 1])
+                c1.subheader(f"#{row['id']}")
+                c2.markdown(f"**{row['customer']}** - {row['size']} {row['pizza_type']}")
+                c3.warning(f"Status: {row['status']}")
+                if c4.button("Mark Delivered", key=f"btn_{row['id']}"):
+                    conn = sqlite3.connect("pizza_admin.db")
+                    c = conn.cursor()
+                    c.execute("UPDATE orders SET status = 'Delivered' WHERE id = ?", (row['id'],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
+                st.divider()
     else:
-        st.warning("No grades recorded yet.")
+        st.success("Kitchen is clear! No pending orders.")
 
-# --- MODULE 4: ADD NEW ENTRY ---
-elif page == "Add New Entry":
-    st.title("➕ Administrative Entry")
+# --- PAGE 2: CREATE NEW ORDER ---
+elif page == "🍕 Create New Order":
+    st.title("🍕 Take an Order")
     
-    tab1, tab2 = st.tabs(["Enroll Student", "Record Grade"])
+    col1, col2 = st.columns(2)
     
-    with tab1:
-        with st.form("enroll_form"):
-            s_name = st.text_input("Student Name")
-            s_grade = st.selectbox("Grade Level", [f"Grade {i}" for i in range(1, 13)])
-            s_contact = st.text_input("Parent Contact (Phone/Email)")
-            if st.form_submit_button("Enroll Student"):
-                conn = sqlite3.connect("school.db")
+    with col1:
+        st.subheader("Customer Details")
+        cust_name = st.text_input("Customer Name")
+        pizza = st.selectbox("Select Pizza", ["Margherita", "Pepperoni", "BBQ Chicken", "Veggie Supreme", "Hawaiian"])
+        size = st.select_slider("Size", options=["Personal", "Medium", "Large", "Family"])
+    
+    with col2:
+        st.subheader("Pricing & Confirmation")
+        prices = {"Personal": 8.0, "Medium": 12.0, "Large": 16.0, "Family": 20.0}
+        current_price = prices[size]
+        st.metric("Total Price", f"${current_price:.2f}")
+        
+        if st.button("Confirm & Send to Kitchen"):
+            if cust_name:
+                conn = sqlite3.connect("pizza_admin.db")
                 c = conn.cursor()
-                c.execute("INSERT INTO students (name, grade_level, parent_contact) VALUES (?, ?, ?)", 
-                          (s_name, s_grade, s_contact))
+                c.execute("INSERT INTO orders (customer, pizza_type, size, status, price, timestamp) VALUES (?, ?, ?, ?, ?, ?)", 
+                          (cust_name, pizza, size, 'Cooking', current_price, datetime.now()))
                 conn.commit()
                 conn.close()
-                st.success(f"Registered {s_name}!")
+                st.balloons()
+                st.toast(f"Order for {cust_name} sent to kitchen!", icon="🍕")
+            else:
+                st.error("Please enter a customer name.")
 
-    with tab2:
-        # Get list of students for the dropdown
-        conn = sqlite3.connect("school.db")
-        student_list = pd.read_sql_query("SELECT name FROM students", conn)['name'].tolist()
-        conn.close()
+# --- PAGE 3: SALES INSIGHTS ---
+elif page == "📊 Sales Insights":
+    st.title("📊 Restaurant Performance")
+    conn = sqlite3.connect("pizza_admin.db")
+    df = pd.read_sql_query("SELECT * FROM orders", conn)
+    conn.close()
 
-        with st.form("grade_form"):
-            student = st.selectbox("Select Student", student_list) if student_list else st.info("Enroll students first!")
-            subject = st.selectbox("Subject", ["Math", "Science", "English", "History", "Arts"])
-            score = st.slider("Score", 0, 100, 75)
-            if st.form_submit_button("Submit Grade"):
-                conn = sqlite3.connect("school.db")
-                c = conn.cursor()
-                c.execute("INSERT INTO grades (student_name, subject, score) VALUES (?, ?, ?)", 
-                          (student, subject, score))
-                conn.commit()
-                conn.close()
-                st.balloons() # Fun visual effect
-                st.success(f"Grade added for {student}!")
+    if not df.empty:
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Revenue", f"${df['price'].sum():,.2f}")
+        m2.metric("Total Pizzas Sold", len(df))
+        m3.metric("Avg Order Value", f"${df['price'].mean():.2f}")
+
+        st.subheader("Popular Pizzas")
+        pizza_counts = df['pizza_type'].value_counts()
+        st.bar_chart(pizza_counts)
+    else:
+        st.info("No sales data recorded yet.")
