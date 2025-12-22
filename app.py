@@ -5,129 +5,109 @@ from datetime import datetime
 
 # --- DATABASE SETUP ---
 def init_db():
-    conn = sqlite3.connect("pizza_admin.db")
+    conn = sqlite3.connect("salon_bookings.db")
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS orders 
+    c.execute('''CREATE TABLE IF NOT EXISTS bookings 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  customer TEXT, pizza_type TEXT, size TEXT, 
-                  status TEXT, price REAL, timestamp DATETIME)''')
+                  client_name TEXT, service TEXT, date TEXT, time TEXT, status TEXT)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- FANCY UI/UX ---
-st.set_page_config(page_title="SliceMaster Pro + AI", page_icon="🍕", layout="wide")
+# --- UI/UX CONFIG ---
+st.set_page_config(page_title="Luxe Glow Studio", page_icon="✨", layout="wide")
 
+# Custom CSS for a soft, elegant "Salon" feel
 st.markdown("""
     <style>
-    .stChatFloatingInputContainer { background-color: #1a1a1a; }
-    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
+    .stApp { background-color: #fffaf0; }
+    h1, h2, h3 { color: #5d4037; font-family: 'Serif'; }
+    .stButton>button { background-color: #d4a373; color: white; border-radius: 5px; width: 100%; border: none; }
+    .service-card { background-color: white; padding: 20px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- SIDEBAR NAV ---
-st.sidebar.title("🍕 SliceMaster AI")
-page = st.sidebar.selectbox("Go to:", ["🤖 AI Assistant", "🔥 Live Orders", "🍕 Create New Order", "📊 Sales Insights"])
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
+st.sidebar.title("Luxe Glow Admin")
+page = st.sidebar.radio("Navigation", ["✨ Welcome Home", "💅 Our Services", "📅 Book Appointment", "🔐 Staff Dashboard"])
 
-# --- MODULE: AI CHATBOT assistant ---
-if page == "🤖 AI Assistant":
-    st.title("🤖 Pizza Assistant")
-    st.info("Ask me about our menu, prices, or how to place an order!")
-
-    # Initialize chat history (This is like $_SESSION in PHP)
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Ciao! I'm the SliceMaster AI. How can I help you today?"}]
-
-    # Display chat messages from history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # React to user input
-    if prompt := st.chat_input("Type your question here..."):
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # GENERATE BOT RESPONSE (Rule-based for POC)
-        response = ""
-        p = prompt.lower()
-        
-        if "menu" in p or "pizzas" in p:
-            response = "We have: Margherita, Pepperoni, BBQ Chicken, Veggie Supreme, and Hawaiian!"
-        elif "price" in p or "cost" in p:
-            response = "Our prices range from $8.00 for a Personal to $20.00 for a Family size."
-        elif "order" in p:
-            response = "You can place an order by clicking 'Create New Order' in the sidebar!"
-        elif "hello" in p or "hi" in p:
-            response = "Hello! Ready for the best pizza in town?"
-        else:
-            response = "I'm still learning! You can ask me about our 'menu', 'prices', or how to 'order'."
-
-        # Display assistant response
-        with st.chat_message("assistant"):
-            st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-# --- PAGE 1: LIVE ORDERS ---
-elif page == "🔥 Live Orders":
-    st.title("🔥 Current Kitchen Queue")
-    conn = sqlite3.connect("pizza_admin.db")
-    df = pd.read_sql_query("SELECT * FROM orders WHERE status != 'Delivered' ORDER BY timestamp DESC", conn)
-    conn.close()
-
-    if not df.empty:
-        for index, row in df.iterrows():
-            with st.container():
-                c1, c2, c3, c4 = st.columns([1, 2, 1, 1])
-                c1.subheader(f"#{row['id']}")
-                c2.markdown(f"**{row['customer']}** - {row['size']} {row['pizza_type']}")
-                c3.warning(f"Status: {row['status']}")
-                if c4.button("Mark Delivered", key=f"btn_{row['id']}"):
-                    conn = sqlite3.connect("pizza_admin.db")
-                    c = conn.cursor()
-                    c.execute("UPDATE orders SET status = 'Delivered' WHERE id = ?", (row['id'],))
-                    conn.commit()
-                    conn.close()
-                    st.rerun()
-                st.divider()
-    else:
-        st.success("Kitchen is clear!")
-
-# --- PAGE 2: CREATE NEW ORDER ---
-elif page == "🍕 Create New Order":
-    st.title("🍕 Take an Order")
-    col1, col2 = st.columns(2)
+# --- PAGE 1: LANDING PAGE (HERO) ---
+if page == "✨ Welcome Home":
+    st.title("Welcome to Luxe Glow Studio")
+    st.markdown("#### *Where Beauty Meets Science and Soul*")
+    
+    # Hero Image
+    st.image("https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
+    
+    st.divider()
+    
+    col1, col2, col3 = st.columns(3)
     with col1:
-        cust_name = st.text_input("Customer Name")
-        pizza = st.selectbox("Select Pizza", ["Margherita", "Pepperoni", "BBQ Chicken", "Veggie Supreme", "Hawaiian"])
-        size = st.select_slider("Size", options=["Personal", "Medium", "Large", "Family"])
+        st.write("### Expert Stylists")
+        st.write("Our team has over 15 years of experience in high-end fashion and bridal hair.")
     with col2:
-        prices = {"Personal": 8.0, "Medium": 12.0, "Large": 16.0, "Family": 20.0}
-        current_price = prices[size]
-        st.metric("Total Price", f"${current_price:.2f}")
-        if st.button("Confirm Order"):
-            if cust_name:
-                conn = sqlite3.connect("pizza_admin.db")
+        st.write("### Organic Products")
+        st.write("We use 100% sulfate-free and paraben-free products for your hair and skin.")
+    with col3:
+        st.write("### Relaxing Atmosphere")
+        st.write("Enjoy a complimentary glass of champagne and aromatherapy with every service.")
+
+# --- PAGE 2: SERVICES ---
+elif page == "💅 Our Services":
+    st.title("Our Signature Services")
+    
+    c1, c2, c3 = st.columns(3)
+    
+    services = [
+        {"name": "Hair Cut & Style", "price": "$85+", "img": "https://cdn-icons-png.flaticon.com/512/2932/2932159.png"},
+        {"name": "Balayage Color", "price": "$180+", "img": "https://cdn-icons-png.flaticon.com/512/3059/3059434.png"},
+        {"name": "HydraFacial", "price": "$120+", "img": "https://cdn-icons-png.flaticon.com/512/3209/3209144.png"}
+    ]
+    
+    cols = [c1, c2, c3]
+    for i, s in enumerate(services):
+        with cols[i]:
+            st.image(s['img'], width=80)
+            st.subheader(s['name'])
+            st.write(f"Starting at {s['price']}")
+            if st.button(f"Book {s['name']}", key=i):
+                st.info("Head to the Booking page to secure your slot!")
+
+# --- PAGE 3: BOOKING ---
+elif page == "📅 Book Appointment":
+    st.title("Secure Your Glow")
+    
+    with st.form("booking_form"):
+        name = st.text_input("Full Name")
+        service = st.selectbox("Select Service", ["Hair Cut", "Full Color", "Facial", "Manicure/Pedicure", "Bridal Makeup"])
+        b_date = st.date_input("Preferred Date")
+        b_time = st.select_slider("Preferred Time", options=["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"])
+        
+        if st.form_submit_button("Request Appointment"):
+            if name:
+                conn = sqlite3.connect("salon_bookings.db")
                 c = conn.cursor()
-                c.execute("INSERT INTO orders (customer, pizza_type, size, status, price, timestamp) VALUES (?, ?, ?, ?, ?, ?)", 
-                          (cust_name, pizza, size, 'Cooking', current_price, datetime.now()))
+                c.execute("INSERT INTO bookings (client_name, service, date, time, status) VALUES (?, ?, ?, ?, ?)", 
+                          (name, service, str(b_date), b_time, "Pending"))
                 conn.commit()
                 conn.close()
+                st.success(f"Thank you {name}! We will confirm your appointment for {b_date} at {b_time} shortly.")
                 st.balloons()
             else:
-                st.error("Enter customer name.")
+                st.error("Please enter your name.")
 
-# --- PAGE 3: SALES INSIGHTS ---
-elif page == "📊 Sales Insights":
-    st.title("📊 Performance")
-    conn = sqlite3.connect("pizza_admin.db")
-    df = pd.read_sql_query("SELECT * FROM orders", conn)
+# --- PAGE 4: STAFF DASHBOARD ---
+elif page == "🔐 Staff Dashboard":
+    st.title("Admin Appointments")
+    
+    conn = sqlite3.connect("salon_bookings.db")
+    df = pd.read_sql_query("SELECT * FROM bookings", conn)
     conn.close()
+    
     if not df.empty:
-        m1, m2 = st.columns(2)
-        m1.metric("Total Revenue", f"${df['price'].sum():,.2f}")
-        m2.metric("Orders", len(df))
-        st.bar_chart(df['pizza_type'].value_counts())
+        st.dataframe(df, use_container_width=True)
+        st.download_button("Download Schedule as CSV", df.to_csv(index=False), "salon_schedule.csv")
+    else:
+        st.info("No bookings yet.")
