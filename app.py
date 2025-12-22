@@ -1,52 +1,77 @@
 import streamlit as st
 import pandas as pd
-import os
+import sqlite3
+from datetime import datetime
 
-# 1. Setup Page Config
-st.set_page_config(page_title="Lead Capture POC", layout="centered")
+# --- DATABASE SETUP ---
+def init_db():
+    conn = sqlite3.connect("inventory.db")
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS items 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  name TEXT, category TEXT, quantity INTEGER, price REAL)''')
+    conn.commit()
+    conn.close()
 
-# 2. Simple CSS styling (Since you know CSS)
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { width: 100%; background-color: #007bff; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
+init_db()
 
-st.title("🚀 Gym Member Interest Form")
-st.write("Fill in the details below to join the waitlist.")
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.title("📦 IMS Portal")
+st.sidebar.divider()
+page = st.sidebar.radio("Navigate to:", ["Dashboard", "Inventory List", "Add/Update Stock"])
 
-# 3. Data Storage Logic (Simple CSV 'Database')
-DB_FILE = "leads.csv"
+# --- PAGE 1: DASHBOARD ---
+if page == "Dashboard":
+    st.title("📊 Business Overview")
+    
+    conn = sqlite3.connect("inventory.db")
+    df = pd.read_sql_query("SELECT * FROM items", conn)
+    conn.close()
 
-def save_data(name, email, goal):
-    new_data = pd.DataFrame([[name, email, goal]], columns=["Name", "Email", "Goal"])
-    if os.path.exists(DB_FILE):
-        df = pd.read_csv(DB_FILE)
-        df = pd.concat([df, new_data], ignore_index=True)
+    if not df.empty:
+        # High-level Metrics
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Items", len(df))
+        col2.metric("Total Value", f"${(df['quantity'] * df['price']).sum():,.2f}")
+        col3.metric("Low Stock Alerts", len(df[df['quantity'] < 5]))
+
+        st.subheader("Inventory Distribution")
+        st.bar_chart(df.set_index('name')['quantity'])
     else:
-        df = new_data
-    df.to_csv(DB_FILE, index=False)
+        st.info("No data available. Go to 'Add/Update Stock' to begin.")
 
-# 4. The User Interface (The "Form")
-with st.form("interest_form", clear_on_submit=True):
-    name = st.text_input("Full Name of the memeber")
-    email = st.text_input("Email Address")
-    goal = st.selectbox("Fitness Goal", ["Weight Loss", "Muscle Gain", "General Health"])
-    submit = st.form_submit_button("Submit Details")
+# --- PAGE 2: INVENTORY LIST ---
+elif page == "Inventory List":
+    st.title("📋 Current Inventory")
+    conn = sqlite3.connect("inventory.db")
+    df = pd.read_sql_query("SELECT * FROM items", conn)
+    conn.close()
+    
+    # Search Bar
+    search = st.text_input("Search by Product Name")
+    if search:
+        df = df[df['name'].str.contains(search, case=False)]
+    
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-    if submit:
-        if name and email:
-            save_data(name, email, goal)
-            st.success(f"Done! {name} has been added to the database.")
-        else:
-            st.error("Please fill in all fields.")
-
-# 5. The "Admin View" (The Data Table)
-st.divider()
-st.subheader("📊 Collected Leads (Admin View)")
-if os.path.exists(DB_FILE):
-    current_leads = pd.read_csv(DB_FILE)
-    st.dataframe(current_leads, use_container_width=True)
-else:
-    st.info("No leads collected yet.")
+# --- PAGE 3: ADD/UPDATE STOCK ---
+elif page == "Add/Update Stock":
+    st.title("➕ Stock Management")
+    
+    with st.form("add_form"):
+        name = st.text_input("Product Name")
+        cat = st.selectbox("Category", ["Electronics", "Furniture", "Food", "Apparel"])
+        qty = st.number_input("Quantity", min_value=0, step=1)
+        prc = st.number_input("Unit Price ($)", min_value=0.0, step=0.01)
+        
+        if st.form_submit_button("Save to Database"):
+            if name:
+                conn = sqlite3.connect("inventory.db")
+                c = conn.cursor()
+                c.execute("INSERT INTO items (name, category, quantity, price) VALUES (?, ?, ?, ?)", 
+                          (name, cat, qty, prc))
+                conn.commit()
+                conn.close()
+                st.success(f"Successfully added {name}!")
+            else:
+                st.error("Product Name is required.")
