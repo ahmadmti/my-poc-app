@@ -1,106 +1,104 @@
 import streamlit as st
 import random
 
-# --- CONFIG ---
-st.set_page_config(page_title="Jungle Safari Adventure", page_icon="🦁", layout="wide")
+# --- PAGE SETUP ---
+st.set_page_config(page_title="Sky Island Adventure", page_icon="☁️", layout="wide")
 
-# --- CUSTOM JUNGLE THEME ---
+# --- MAGICAL THEME CSS ---
 st.markdown("""
     <style>
     .stApp {
-        background-color: #f0fdf4;
+        background: linear-gradient(to bottom, #87CEEB, #E0F7FA);
     }
-    .player-card {
-        padding: 15px;
-        border-radius: 20px;
-        text-align: center;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-        border: 4px solid transparent;
-    }
-    .active { border-color: #16a34a; background-color: #dcfce7; transform: scale(1.05); }
-    .stat-text { font-size: 24px; font-weight: bold; color: #16a34a; }
-    .jungle-box {
+    .island-card {
         background: white;
         padding: 20px;
-        border-radius: 15px;
-        border: 2px dashed #16a34a;
+        border-radius: 25px;
         text-align: center;
+        border: 4px solid #fff;
+        box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
     }
+    .active-island {
+        border: 4px solid #FFD700;
+        background: #FFF9C4;
+        box-shadow: 0px 0px 30px rgba(255, 215, 0, 0.6);
+    }
+    .player-avatar { font-size: 40px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- GAME SETUP ---
-GOAL = 30
-if 'scores' not in st.session_state:
-    st.session_state.scores = {"Noor ul Huda 🦁": 0, "Noor ul Ain 🦒": 0, "Hiba Fraz 🐘": 0}
+# --- GAME STATE ---
+ISLANDS = 25
+if 'positions' not in st.session_state:
+    st.session_state.positions = {"Noor ul Huda": 0, "Noor ul Ain": 0, "Hiba Fraz": 0}
     st.session_state.turn = 0
-    st.session_state.log = "Welcome to the Jungle! 🌴"
+    st.session_state.event = "The sun is shining on the Sky Islands! ☀️"
 
-players = list(st.session_state.scores.keys())
-current_player = players[st.session_state.turn]
+players = ["Noor ul Huda", "Noor ul Ain", "Hiba Fraz"]
+avatars = {"Noor ul Huda": "🦄", "Noor ul Ain": "🦋", "Hiba Fraz": "🌈"}
+current_p = players[st.session_state.turn]
 
-# --- UI LAYOUT ---
-st.title("🌴 The Magic Jungle Safari")
-st.write("### First one to reach the Golden Banana (30 steps) wins!")
+# --- UI HEADER ---
+st.title("☁️ Sky Island Adventure")
+st.write("### Leap across the floating islands to reach the Rainbow Castle!")
 
-# Top Row: Player Cards
+# --- PLAYER STATUS ---
 cols = st.columns(3)
-for i, name in enumerate(players):
-    is_active = "active" if name == current_player else ""
+for i, p in enumerate(players):
+    is_turn = "active-island" if p == current_p else ""
     with cols[i]:
         st.markdown(f"""
-            <div class='player-card {is_active}'>
-                <h2>{name}</h2>
-                <p class='stat-text'>{st.session_state.scores[name]} / {GOAL}</p>
-                <p>Steps Taken</p>
+            <div class='island-card {is_turn}'>
+                <div class='player-avatar'>{avatars[p]}</div>
+                <h3>{p}</h3>
+                <p>On Island: <b>{st.session_state.positions[p]}</b></p>
             </div>
         """, unsafe_allow_html=True)
 
-st.write("##")
+st.write("---")
 
-# Middle Row: The Dice and Event
+# --- GAMEPLAY ---
 c1, c2, c3 = st.columns([1,2,1])
 with c2:
-    st.markdown("<div class='jungle-box'>", unsafe_allow_html=True)
-    if st.button(f"🎲 ROLL DICE FOR {current_player.upper()}", use_container_width=True):
-        roll = random.randint(1, 6)
+    if st.button(f"✨ {current_p.upper()}, LEAP TO THE NEXT ISLAND!", use_container_width=True):
+        jump = random.randint(1, 4) # Smaller jumps for more interaction
+        st.session_state.positions[current_player] += jump
         
-        # Jungle Events
-        event_roll = random.random()
-        bonus = 0
-        event_msg = f"{current_player} rolled a {roll}!"
+        # Check for Mystery Islands
+        pos = st.session_state.positions[current_p]
+        msg = f"{avatars[current_p]} {current_p} jumped {jump} islands!"
         
-        if event_roll > 0.8: # 20% chance of an animal event
-            event_type = random.choice(["Monkey", "Snake", "Cheetah"])
-            if event_type == "Monkey":
-                bonus = 3
-                event_msg = f"🐒 A Monkey gave {current_player} a lift! (+3 extra steps)"
-            elif event_type == "Snake":
-                bonus = -2
-                event_msg = f"🐍 Oh no! A Snake scared {current_player}! (Go back 2 steps)"
-            elif event_type == "Cheetah":
-                bonus = 5
-                event_msg = f"🐆 WOW! A Cheetah sprint! (+5 extra steps)"
+        # Surprise Events
+        if pos in [5, 12, 18]:
+            st.session_state.positions[current_p] += 3
+            msg = f"🚀 WIND GUST! {current_p} flew 3 extra islands forward!"
+        elif pos in [8, 15, 22]:
+            st.session_state.positions[current_p] -= 2
+            msg = f"☁️ FOGGY CLOUD! {current_p} got lost and went back 2 islands."
+        elif pos == 10:
+            msg = f"💎 MAGIC GEM! {current_p} found a gem and gets an extra turn!"
+            st.session_state.event = msg
+            st.rerun() # Skip the turn increment
+            
+        st.session_state.event = msg
         
-        # Update Score
-        st.session_state.scores[current_player] = max(0, st.session_state.scores[current_player] + roll + bonus)
-        st.session_state.log = event_msg
-        
-        # Check Winner
-        if st.session_state.scores[current_player] >= GOAL:
+        # Win Condition
+        if st.session_state.positions[current_p] >= ISLANDS:
             st.balloons()
-            st.success(f"🏆 {current_player} FOUND THE GOLDEN BANANA AND WINS!")
-            st.session_state.scores = {k: 0 for k in st.session_state.scores} # Reset
+            st.success(f"👑 {current_p} HAS REACHED THE RAINBOW CASTLE!")
+            st.session_state.positions = {k: 0 for k in st.session_state.positions}
         else:
             st.session_state.turn = (st.session_state.turn + 1) % 3
             st.rerun()
-            
-    st.markdown(f"### {st.session_state.log}")
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# Bottom: Visual Progress
-st.write("##")
-for name in players:
-    score = st.session_state.scores[name]
-    st.write(f"**{name}**")
-    st.progress(min(score/GOAL, 1.0))
+    st.info(st.session_state.event)
+
+# --- VISUAL MAP ---
+st.write("### 🗺️ The Map")
+# We create a horizontal visual of the journey
+track = ["⬜"] * (ISLANDS + 1)
+for p in players:
+    p_pos = min(st.session_state.positions[p], ISLANDS)
+    track[p_pos] = avatars[p]
+
+st.markdown(f"<h1 style='text-align: center;'>{' '.join(track)} 🏰</h1>", unsafe_allow_html=True)
