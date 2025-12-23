@@ -1,113 +1,135 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
 
-# --- DATABASE SETUP ---
+# --- DATABASE SETUP (For Contact/Messages) ---
 def init_db():
-    conn = sqlite3.connect("salon_bookings.db")
+    conn = sqlite3.connect("noor_records.db")
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS bookings 
+    c.execute('''CREATE TABLE IF NOT EXISTS messages 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  client_name TEXT, service TEXT, date TEXT, time TEXT, status TEXT)''')
+                  name TEXT, email TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- UI/UX CONFIG ---
-st.set_page_config(page_title="Luxe Glow Studio", page_icon="✨", layout="wide")
+# --- UI/UX CONFIG (Abark-Inspired) ---
+st.set_page_config(page_title="Noor ul Huda | Official", page_icon="✨", layout="wide")
 
-# Custom CSS for a soft, elegant "Salon" feel
+# Custom CSS for Minimalist Dark/Modern Aesthetic
 st.markdown("""
     <style>
-    .stApp { background-color: #fffaf0; }
-    h1, h2, h3 { color: #5d4037; font-family: 'Serif'; }
-    .stButton>button { background-color: #d4a373; color: white; border-radius: 5px; width: 100%; border: none; }
-    .service-card { background-color: white; padding: 20px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); text-align: center; }
+    /* Dark background like modern tech sites */
+    .stApp { background-color: #0E1117; color: #FFFFFF; }
+    
+    /* Elegant Typography */
+    h1, h2 { font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -1px; }
+    p { color: #A0A0A0; font-size: 1.1rem; line-height: 1.6; }
+    
+    /* Clean Buttons */
+    .stButton>button { 
+        background-color: #FFFFFF; 
+        color: #000000; 
+        border-radius: 2px; 
+        font-weight: bold; 
+        border: none;
+        padding: 0.5rem 2rem;
+        transition: 0.3s;
+    }
+    .stButton>button:hover { background-color: #E0E0E0; color: #000000; }
+    
+    /* Service/Feature Boxes */
+    .info-card { 
+        background-color: #161B22; 
+        padding: 2rem; 
+        border-radius: 8px; 
+        border: 1px solid #30363D;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- SIDEBAR NAV ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
-st.sidebar.title("Luxe Glow Admin")
-page = st.sidebar.radio("Navigation", ["✨ Welcome Home", "💅 Our Services", "📅 Book Appointment", "🔐 Staff Dashboard"])
+st.sidebar.markdown("### 🧭 Navigation")
+page = st.sidebar.radio("Go to:", ["Home", "Portfolio", "Contact"])
 
-# --- PAGE 1: LANDING PAGE (HERO) ---
-if page == "✨ Welcome Home":
-    st.title("Welcome to Luxe Glow Studio")
-    st.markdown("#### *Where Beauty Meets Science and Soul*")
+# --- PAGE 1: HOME (ABARK STYLE HERO) ---
+if page == "Home":
+    # Empty space for top margin
+    st.write("##")
     
-    # Hero Image
-    st.image("https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
+    col1, col2 = st.columns([2, 1])
     
-    st.divider()
-    
-    col1, col2, col3 = st.columns(3)
     with col1:
-        st.write("### Expert Stylists")
-        st.write("Our team has over 15 years of experience in high-end fashion and bridal hair.")
+        st.markdown("# NOOR UL HUDA")
+        st.markdown("### *Visionary. Learner. Future Leader.*")
+        st.write(
+            "Welcome to the official digital space of Noor ul Huda. "
+            "Dedicated to excellence, continuous growth, and building "
+            "meaningful solutions for tomorrow."
+        )
+        if st.button("Explore Work"):
+            st.info("Scroll down or use the sidebar to view the portfolio.")
+            
     with col2:
-        st.write("### Organic Products")
-        st.write("We use 100% sulfate-free and paraben-free products for your hair and skin.")
-    with col3:
-        st.write("### Relaxing Atmosphere")
-        st.write("Enjoy a complimentary glass of champagne and aromatherapy with every service.")
+        # Placeholder for a professional portrait or abstract tech art
+        st.image("https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800", caption="Innovating through technology")
 
-# --- PAGE 2: SERVICES ---
-elif page == "💅 Our Services":
-    st.title("Our Signature Services")
+    st.write("---")
     
+    # Values/Features Section
     c1, c2, c3 = st.columns(3)
-    
-    services = [
-        {"name": "Hair Cut & Style", "price": "$85+", "img": "https://cdn-icons-png.flaticon.com/512/2932/2932159.png"},
-        {"name": "Balayage Color", "price": "$180+", "img": "https://cdn-icons-png.flaticon.com/512/3059/3059434.png"},
-        {"name": "HydraFacial", "price": "$120+", "img": "https://cdn-icons-png.flaticon.com/512/3209/3209144.png"}
-    ]
-    
-    cols = [c1, c2, c3]
-    for i, s in enumerate(services):
-        with cols[i]:
-            st.image(s['img'], width=80)
-            st.subheader(s['name'])
-            st.write(f"Starting at {s['price']}")
-            if st.button(f"Book {s['name']}", key=i):
-                st.info("Head to the Booking page to secure your slot!")
+    with c1:
+        st.markdown("<div class='info-card'><h3>Creative Design</h3><p>Focusing on aesthetics that inspire and engage users across all digital platforms.</p></div>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div class='info-card'><h3>Strategic Thinking</h3><p>Approaching problems with a data-driven mindset to find the most efficient paths.</p></div>", unsafe_allow_html=True)
+    with c3:
+        st.markdown("<div class='info-card'><h3>Global Impact</h3><p>Building projects with a focus on scalability and positive societal contribution.</p></div>", unsafe_allow_html=True)
 
-# --- PAGE 3: BOOKING ---
-elif page == "📅 Book Appointment":
-    st.title("Secure Your Glow")
+# --- PAGE 2: PORTFOLIO ---
+elif page == "Portfolio":
+    st.title("Selected Works")
+    st.write("A showcase of projects, achievements, and milestones.")
     
-    with st.form("booking_form"):
-        name = st.text_input("Full Name")
-        service = st.selectbox("Select Service", ["Hair Cut", "Full Color", "Facial", "Manicure/Pedicure", "Bridal Makeup"])
-        b_date = st.date_input("Preferred Date")
-        b_time = st.select_slider("Preferred Time", options=["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"])
+    # Grid of Projects
+    p1, p2 = st.columns(2)
+    with p1:
+        st.image("https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=600")
+        st.markdown("#### Project Alpha: Data Analytics")
+        st.write("Developing insights through modern visualization techniques.")
         
-        if st.form_submit_button("Request Appointment"):
-            if name:
-                conn = sqlite3.connect("salon_bookings.db")
-                c = conn.cursor()
-                c.execute("INSERT INTO bookings (client_name, service, date, time, status) VALUES (?, ?, ?, ?, ?)", 
-                          (name, service, str(b_date), b_time, "Pending"))
-                conn.commit()
-                conn.close()
-                st.success(f"Thank you {name}! We will confirm your appointment for {b_date} at {b_time} shortly.")
-                st.balloons()
-            else:
-                st.error("Please enter your name.")
+    with p2:
+        st.image("https://images.unsplash.com/photo-1522542550221-31fd19575a2d?auto=format&fit=crop&q=80&w=600")
+        st.markdown("#### Project Beta: Web Architecture")
+        st.write("Building high-performance web systems using scalable technologies.")
 
-# --- PAGE 4: STAFF DASHBOARD ---
-elif page == "🔐 Staff Dashboard":
-    st.title("Admin Appointments")
+# --- PAGE 3: CONTACT ---
+elif page == "Contact":
+    st.title("Get In Touch")
+    st.write("Have a project in mind or just want to say hello?")
     
-    conn = sqlite3.connect("salon_bookings.db")
-    df = pd.read_sql_query("SELECT * FROM bookings", conn)
-    conn.close()
+    contact_col, info_col = st.columns([2, 1])
     
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
-        st.download_button("Download Schedule as CSV", df.to_csv(index=False), "salon_schedule.csv")
-    else:
-        st.info("No bookings yet.")
+    with contact_col:
+        with st.form("contact_form"):
+            u_name = st.text_input("Name")
+            u_email = st.text_input("Email")
+            u_msg = st.text_area("Message")
+            
+            if st.form_submit_button("Send Message"):
+                if u_name and u_msg:
+                    conn = sqlite3.connect("noor_records.db")
+                    c = conn.cursor()
+                    c.execute("INSERT INTO messages (name, email, message) VALUES (?, ?, ?)", 
+                              (u_name, u_email, u_msg))
+                    conn.commit()
+                    conn.close()
+                    st.success("Message sent successfully! Noor will get back to you soon.")
+                else:
+                    st.error("Please fill in the required fields.")
+    
+    with info_col:
+        st.markdown("#### Reach Out Directly")
+        st.write("📧 info@abark.tech")
+        st.write("📍 Islamabad, Pakistan")
+        st.write("🔗 [LinkedIn](#)")
