@@ -31,12 +31,14 @@ st.markdown("""
 ISLANDS = 25
 if 'positions' not in st.session_state:
     st.session_state.positions = {"Noor ul Huda": 0, "Noor ul Ain": 0, "Hiba Fraz": 0}
+if 'turn' not in st.session_state:
     st.session_state.turn = 0
+if 'event' not in st.session_state:
     st.session_state.event = "The sun is shining on the Sky Islands! ☀️"
 
 players = ["Noor ul Huda", "Noor ul Ain", "Hiba Fraz"]
 avatars = {"Noor ul Huda": "🦄", "Noor ul Ain": "🦋", "Hiba Fraz": "🌈"}
-current_p = players[st.session_state.turn]
+current_p = players[st.session_state.turn] # This is the variable name we are using
 
 # --- UI HEADER ---
 st.title("☁️ Sky Island Adventure")
@@ -60,11 +62,11 @@ st.write("---")
 # --- GAMEPLAY ---
 c1, c2, c3 = st.columns([1,2,1])
 with c2:
+    # Use 'current_p' everywhere inside the button logic
     if st.button(f"✨ {current_p.upper()}, LEAP TO THE NEXT ISLAND!", use_container_width=True):
-        jump = random.randint(1, 4) # Smaller jumps for more interaction
-        st.session_state.positions[current_player] += jump
+        jump = random.randint(1, 4) 
+        st.session_state.positions[current_p] += jump
         
-        # Check for Mystery Islands
         pos = st.session_state.positions[current_p]
         msg = f"{avatars[current_p]} {current_p} jumped {jump} islands!"
         
@@ -73,12 +75,12 @@ with c2:
             st.session_state.positions[current_p] += 3
             msg = f"🚀 WIND GUST! {current_p} flew 3 extra islands forward!"
         elif pos in [8, 15, 22]:
-            st.session_state.positions[current_p] -= 2
+            st.session_state.positions[current_p] = max(0, st.session_state.positions[current_p] - 2)
             msg = f"☁️ FOGGY CLOUD! {current_p} got lost and went back 2 islands."
         elif pos == 10:
             msg = f"💎 MAGIC GEM! {current_p} found a gem and gets an extra turn!"
             st.session_state.event = msg
-            st.rerun() # Skip the turn increment
+            st.rerun() 
             
         st.session_state.event = msg
         
@@ -87,6 +89,7 @@ with c2:
             st.balloons()
             st.success(f"👑 {current_p} HAS REACHED THE RAINBOW CASTLE!")
             st.session_state.positions = {k: 0 for k in st.session_state.positions}
+            st.session_state.turn = 0
         else:
             st.session_state.turn = (st.session_state.turn + 1) % 3
             st.rerun()
@@ -95,7 +98,6 @@ with c2:
 
 # --- VISUAL MAP ---
 st.write("### 🗺️ The Map")
-# We create a horizontal visual of the journey
 track = ["⬜"] * (ISLANDS + 1)
 for p in players:
     p_pos = min(st.session_state.positions[p], ISLANDS)
